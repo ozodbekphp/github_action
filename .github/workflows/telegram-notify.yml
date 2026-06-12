@@ -1,0 +1,83 @@
+# ============================================================
+# BU FAYL NIMA QILADI?
+# Main branchga har qanday kod push qilinganda:
+#   1. GitHub Actions serverda yonadi
+#   2. Kodingizni tekshiradi (ixtiyoriy)
+#   3. Telegramga xabar yuboradi
+# ============================================================
+
+name: Telegram Xabarnoma
+
+# -------------------------------------------------------
+# QACHON ISHLAYDI?
+# "on" - trigger (yoqish sharti) degan ma'no
+# -------------------------------------------------------
+on:
+  push:
+    branches:
+      - main       # faqat main branchga push bo'lganda
+
+# -------------------------------------------------------
+# NIMA QILADI? (jobs - ishlar)
+# -------------------------------------------------------
+jobs:
+
+  # Bu "notify" deb nomlangan 1 ta ish
+  notify:
+    name: Telegramga xabar yuborish
+    runs-on: ubuntu-latest   # GitHub ning bepul Ubuntu serverida ishlaydi
+
+    steps:
+      # ------------------------------------------------
+      # 1-QADAM: Kodni serverga ko'chirish
+      # "uses" - boshqa tayyor action ishlatish
+      # actions/checkout - GitHub ning o'z actioni
+      # ------------------------------------------------
+      - name: Kodni yuklab olish
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------
+      # 2-QADAM: Muvaffaqiyatli bo'lsa xabar yuborish
+      # curl - internet so'rovi yuborish buyrug'i
+      # ${{ secrets.TELEGRAM_TOKEN }} - GitHub Secrets dan olinadi
+      # ${{ github.actor }} - kim push qilgan
+      # ${{ github.ref_name }} - qaysi branch
+      # ${{ github.sha }} - commit kodi (qisqa)
+      # ------------------------------------------------
+      - name: Telegram - muvaffaqiyat xabari
+        # "if: success()" - oldingi steplar xatosiz o'tsa
+        if: success()
+        run: |
+          curl -s -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="HTML" \
+            -d text="
+          <b>Yangi kod push qilindi!</b>
+
+          Repo: <code>${{ github.repository }}</code>
+          Branch: <code>${{ github.ref_name }}</code>
+          Kim: <b>${{ github.actor }}</b>
+          Commit: <code>${{ github.sha }}</code>
+
+          <a href='https://github.com/${{ github.repository }}/commit/${{ github.sha }}'>Commitni ko'rish</a>"
+
+      # ------------------------------------------------
+      # 3-QADAM: Xato bo'lsa ham xabar yuborish
+      # "if: failure()" - biror step xato bo'lsa
+      # ------------------------------------------------
+      - name: Telegram - xato xabari
+        if: failure()
+        run: |
+          curl -s -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="HTML" \
+            -d text="
+          <b>Xato yuz berdi!</b>
+
+          Repo: <code>${{ github.repository }}</code>
+          Branch: <code>${{ github.ref_name }}</code>
+          Kim: <b>${{ github.actor }}</b>
+
+          <a href='https://github.com/${{ github.repository }}/actions'>Actions sahifasini ko'rish</a>"
